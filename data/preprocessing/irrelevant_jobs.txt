@@ -1,0 +1,67 @@
+nurse
+doctor
+dentist
+hairstylist
+chef
+bartender
+cashier
+janitor
+landscaper
+construction worker
+farmer
+fisherman
+truck driver
+pilot
+flight attendant
+police officer
+firefighter
+military
+dancer
+athlete
+entertainer
+artist
+musician
+salesperson
+receptionist
+administrative assistant
+accountant
+lawyer
+realtor
+retail worker
+restaurant worker
+hotel worker
+factory worker
+housekeeper
+plumber
+electrician
+carpenter
+delivery driver
+postal worker
+social worker
+counselor
+teacher
+childcare worker
+veterinarian
+funeral director
+chaplain
+cosmetologist
+massage therapist
+personal trainer
+tour guide
+real estate agent
+real estate
+insurance agent
+financial advisor
+bank teller
+librarian
+archivist
+curator
+historian
+clergy
+housekeeping
+grounds maintenance
+food service
+personal care
+transportation
+protective services
+community services
