@@ -43,11 +43,12 @@ def main():
         columns={"Job Posting ID": "job_id", "Skills": "skills"}, inplace=True
     )
 
+    print("Initializing the preprocessing pipeline...\n")
     # Initialize the preprocessing pipeline
     pipeline = PreprocessingPipeline(
         [kaggle_postings, companyA_data], IMPORTANT_COLUMNS
     )
-
+    print("Preprocessing the data...\n")
     # Preprocess the data
     data = pipeline.preprocess(
         filter_keywords=True,
@@ -65,6 +66,8 @@ def main():
     print("Columns:", sample.columns)
     print("Relevant jobs:", sample[sample["is_irrelevant"] == 0].shape[0])
     print("Irrelevant jobs:", sample[sample["is_irrelevant"] == 1].shape[0])
+
+    print("\nFinished running the pipeline.\n")
 
 
 if __name__ == "__main__":
