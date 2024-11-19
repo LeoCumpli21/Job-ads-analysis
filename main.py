@@ -37,6 +37,7 @@ def main():
     if os.path.exists("data/out/sample_data.csv"):
         sample = pd.read_csv("data/out/sample_data.csv")
     else:
+        os.makedirs("data/out", exist_ok=True)
         KAGGLE_FILE = args.kaggle_postings_file
         COMPANYA_FILE = args.companyA_file
         IMPORTANT_COLUMNS = ["job_id", "title", "description", "company_name", "skills"]

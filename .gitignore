@@ -170,3 +170,7 @@ iframe_figures
 
 # jupyter notebooks for now
 *.ipynb
+
+# added by Iman
+data/**/*.csv
+data/**/*.xlsx
