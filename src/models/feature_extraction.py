@@ -124,3 +124,6 @@ class TfidfVectorizerModel:
             Transformed data.
         """
         return self.vectorizer.fit_transform(documents)
+
+    def get_feature_names_out(self):
+        return self.vectorizer.get_feature_names_out()
