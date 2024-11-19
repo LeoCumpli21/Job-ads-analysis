@@ -50,8 +50,7 @@ def main():
         kaggle_postings["skills"] = None
         companyA_data["company_name"] = COMPANY_NAME
         companyA_data.rename(
-            columns={"Job Posting ID": "job_id", "Skills": "skills"}, inplace=True
-        )
+            columns={"Job Posting ID": "job_id", "Skills": "skills"}, inplace=True)
 
         print("Initializing the preprocessing pipeline...\n")
         # Initialize the preprocessing pipeline
@@ -124,3 +123,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# example python.exe main.py --company_name ASML --kaggle_postings_file postings.csv --companyA_file "ASML Job Posting Bulk download - Fontys.xlsx"
