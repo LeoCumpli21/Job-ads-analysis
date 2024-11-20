@@ -46,7 +46,7 @@ import pandas as pd
 import numpy as np
 import umap
 
-
+top_N = 6 # how many similar companies to pick based on cosine similarity 
 #%%# Load all datasets
 
 def load_csv_to_dict(folder_path):
@@ -247,7 +247,7 @@ for i, query in enumerate(talent_queries):
     sorted_df = df.sort_values(by='Similarity to Query: ' + query, ascending=False)
 
     # Get the top 10 most similar companies and collect their IDs
-    top_10_ids = sorted_df.head(3)['company_id']
+    top_10_ids = sorted_df.head(top_N)['company_id']
     relevant_company_ids.update(top_10_ids)  # Add to the set to avoid duplicates
 
 # Filter the original DataFrame for the relevant company_ids
