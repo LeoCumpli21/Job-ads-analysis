@@ -1,3 +1,17 @@
+""""
+Questions to answer: 
+- company-topic matrix
+- if we only focus on jobs from these companies ==> 
+    - skills extraction  ==> 
+        - ESCO-XLM, 
+        - https://huggingface.co/collections/jjzha/skill-extraction-6662d3d4f82c7b803eff18aa, 
+    - education extraction
+- Find jobs requiring similar skills and education
+- readability of these jobs
+- soft-skills of these jobs
+"""
+
+
 """
 This script is useful for clustering, searching, and visualizing companies based on their textual descriptions.\
 This script performs data processing, embedding generation, and visualization for company descriptions.
@@ -13,6 +27,8 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.cluster import KMeans
 from sklearn.pipeline import make_pipeline
 import os
+from datetime import datetime
+
 import pandas as pd
 import umap
 import plotly.express as px
@@ -25,7 +41,8 @@ from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 
 from sklearn.decomposition import NMF
 from math import ceil
-
+from scipy.spatial.distance import pdist, squareform
+from scipy.cluster.hierarchy import linkage, leaves_list
 import plotly.express as px
 import pandas as pd
 import numpy as np
@@ -38,8 +55,20 @@ custom_stopwords = [
     "provide", "technologies", "leading", "uses", "countless", "performing",
 "bringing", "independent", "www"]
 all_stopwords = list(ENGLISH_STOP_WORDS.union(custom_stopwords))  # Convert to a list
-
 top_N = 1 # how many similar companies to pick based on cosine similarity 
+n_topics = 12
+top_words = 20  # Number of top words per topic
+
+#%%
+# Define the base directory and create a timestamp
+base_folder = "data/eda_company_descriptions"
+timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+save_folder = os.path.join(base_folder, timestamp)
+
+# Create the directory if it doesn't exist
+os.makedirs(save_folder, exist_ok=True)
+
+# Full path for saving the figure
 #%%# Load all datasets
 
 def load_csv_to_dict(folder_path):
@@ -354,45 +383,21 @@ print(merged_filtered_df_embedding['industry'].unique())
 
 # %%
 
-reducer = umap.UMAP(n_neighbors=15, min_dist=0.1, random_state=42)
-embeddings_filtered = np.array(merged_filtered_df_embedding['embedding'].to_list())
-embeddings_2d = reducer.fit_transform(embeddings_filtered)
-
-umap_df = pd.DataFrame({
-    'UMAP_1': embeddings_2d[:, 0],
-    'UMAP_2': embeddings_2d[:, 1],
-    'Company Name': merged_filtered_df_embedding['name'],
-    'Description': merged_filtered_df_embedding['description']
-})
-
-fig = px.scatter(
-    umap_df,
-    x='UMAP_1',
-    y='UMAP_2',
-    hover_data={'Company Name': True, 'Description': False},
-    title='UMAP of Company Descriptions with Sentence Embeddings',
-    template='plotly_dark',
-    custom_data=['Company Name', 'Description']  # Add customdata
-)
-fig.show()
-
 #%%
 descriptions = merged_filtered_df_embedding['description'].dropna()
 
 # Vectorize the descriptions using TF-IDF
 vectorizer = TfidfVectorizer(stop_words=all_stopwords, max_features=1000)  # You can adjust max_features
-X = vectorizer.fit_transform(descriptions)
+descriptions_tf_idf = vectorizer.fit_transform(descriptions)
 
 # Number of topics you want to extract (You can adjust this number)
-n_topics = 12
 
 # Fit the NMF model
 nmf = NMF(n_components=n_topics, random_state=42,max_iter= 1000)
-nmf.fit(X)
+nmf.fit(descriptions_tf_idf)
 
 # Get the top words for each topic
 feature_names = np.array(vectorizer.get_feature_names_out())
-top_words = 10  # Number of top words per topic
 
 # Create a dictionary of topics with top words
 topics = {}
@@ -406,7 +411,15 @@ for topic_idx, terms in topics.items():
     print(f"Topic {topic_idx}: {' '.join(terms)}")
 
 
+# Define the path for the text file where topics will be saved
+topics_txt_path = os.path.join(save_folder, "topics.txt")
 
+# Open the text file in write mode and save the topics
+with open(topics_txt_path, 'w') as file:
+    for topic_idx, terms in topics.items():
+        file.write(f"Topic {topic_idx}: {' '.join(terms)}\n")
+
+print(f"Topics saved to {topics_txt_path}")
 
 # Plot the top words for each topic in a grid
 def plot_top_words_grid(model, feature_names, n_top_words, n_topics):
@@ -439,9 +452,179 @@ def plot_top_words_grid(model, feature_names, n_top_words, n_topics):
         fig.delaxes(axes[i])
 
     plt.tight_layout()  # Adjust layout to avoid overlap
-    plt.show()
+    
+    figure_path = os.path.join(save_folder, "plot_top_words_grid.png")
+    plt.savefig(figure_path, dpi=300, bbox_inches="tight")
+    plt.close()  # Close the figure after saving
+
+    print(f"Figure saved to {figure_path}")
 
 # Plot the top 10 words for each topic in a grid
-plot_top_words_grid(nmf, feature_names, top_words, n_topics)
+plot_top_words_grid(model=nmf, feature_names=feature_names, n_top_words=10, n_topics=n_topics)
+
+
 
 # %%
+
+# Function to find top companies for each topic
+def get_top_companies_per_topic(nmf, descriptions_tf_idf, df, n_top_companies=10):
+    topic_company_dict = {}
+    topic_distribution = nmf.transform(descriptions_tf_idf)
+    
+    for topic_idx in range(nmf.n_components):
+        # Find the companies with the highest scores for the topic
+        top_company_indices = topic_distribution[:, topic_idx].argsort()[-n_top_companies:][::-1]
+        top_companies = df.iloc[top_company_indices]['name'].values
+        topic_company_dict[topic_idx] = top_companies
+
+    return topic_company_dict
+
+def assign_topics_to_companies(nmf, descriptions_tf_idf, df):
+    # Get the topic distribution for all companies
+    topic_distribution = nmf.transform(descriptions_tf_idf)
+    
+    # Assign the topic with the highest score to each company
+    df['topic'] = topic_distribution.argmax(axis=1)
+
+    return df
+
+# Get the companies for each topic
+top_companies_per_topic = get_top_companies_per_topic(nmf, descriptions_tf_idf, merged_filtered_df_embedding)
+merged_filtered_df_embedding = assign_topics_to_companies(nmf, descriptions_tf_idf, merged_filtered_df_embedding)
+
+
+# Plotting text in subplots
+def plot_companies_in_topics(top_companies_per_topic, save_folder):
+    n_topics = len(top_companies_per_topic)
+    n_cols = 4  # Number of columns in the grid
+    n_rows = ceil(n_topics / n_cols)
+    
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 5 * n_rows))
+    axes = axes.flatten()
+
+    for topic_idx, companies in top_companies_per_topic.items():
+        ax = axes[topic_idx]
+        ax.axis('off')  # Hide axes
+        ax.set_title(f"Topic {topic_idx + 1}", fontsize=12, pad=10)
+        
+        # Add the company names as text
+        ax.text(0.5, 0.5, "\n".join(companies), fontsize=10, ha='center', va='center', wrap=True)
+        
+        # Add a box around the subplot
+        for spine in ax.spines.values():
+            spine.set_edgecolor('black')
+            spine.set_linewidth(1)
+
+    # Hide unused axes (for any remaining subplots that aren't needed)
+    for i in range(len(top_companies_per_topic), len(axes)):
+        fig.delaxes(axes[i])
+
+    # Tight layout to minimize white space
+    plt.tight_layout(pad=2.0)  # Increase pad if you need more space
+
+    # Save the figure
+    figure_path = os.path.join(save_folder, "plot_companies_in_topics.png")
+    plt.savefig(figure_path, dpi=300, bbox_inches="tight")
+    plt.close()  # Close the figure after saving
+
+    print(f"Figure saved to {figure_path}")
+
+# Plot the companies associated with each topic
+plot_companies_in_topics(top_companies_per_topic,save_folder)
+
+# %%
+
+
+# Function to sort companies based on their top topic assignments
+def get_top_companies_per_topic(topic_matrix, company_names):
+    top_topics = np.argmax(topic_matrix, axis=1)  # Dominant topic for each company
+    top_topic_df = pd.DataFrame({
+        'Company': company_names,
+        'Top Topic': top_topics,
+        'Top Weight': topic_matrix[np.arange(len(topic_matrix)), top_topics],
+    })
+    # Secondary sorting (within each topic group)
+    sorted_df = top_topic_df.sort_values(by=['Top Topic', 'Top Weight'], ascending=[True, False])
+    return sorted_df
+
+# Ensure ASML is first
+def place_asml_first(sorted_df):
+    asml_row = sorted_df[sorted_df['Company'].str.lower() == 'asml']
+    non_asml_rows = sorted_df[sorted_df['Company'].str.lower() != 'asml']
+    return pd.concat([asml_row, non_asml_rows], axis=0)
+
+# Generate the company-topic matrix
+company_topic_matrix = nmf.transform(descriptions_tf_idf)  # Assignments of companies to topics
+company_names = merged_filtered_df_embedding['name'].values
+
+# Sort companies
+sorted_companies_df = get_top_companies_per_topic(company_topic_matrix, company_names)
+sorted_companies_df = place_asml_first(sorted_companies_df)
+
+# Reorder the company-topic matrix
+sorted_indices = sorted_companies_df.index
+sorted_matrix = company_topic_matrix[sorted_indices]
+sorted_company_names = sorted_companies_df['Company']
+
+
+# %%
+# Transpose the matrix for companies on the x-axis
+transposed_matrix = sorted_matrix.T
+
+# Plot the heatmap with transposed data
+plt.figure(figsize=(12, 8))
+sns.heatmap(transposed_matrix, 
+            xticklabels=sorted_company_names, 
+            yticklabels=[f"Topic {i+1}" for i in range(n_topics)],
+            cmap='coolwarm', cbar=True)
+
+# Rotate company names vertically
+plt.xticks(rotation=90)
+plt.title("Topic Assignments per Company (Sorted)")
+plt.xlabel("Companies")
+plt.ylabel("Topics")
+plt.tight_layout()
+
+figure_path = os.path.join(save_folder, "topic_company_heatmap.png")
+plt.savefig(figure_path, dpi=300, bbox_inches="tight")
+plt.close()  # Close the figure after saving
+
+print(f"Figure saved to {figure_path}")
+
+# %%
+
+reducer = umap.UMAP(n_neighbors=15, min_dist=0.1, random_state=42)
+embeddings_filtered = np.array(merged_filtered_df_embedding['embedding'].to_list())
+embeddings_2d = reducer.fit_transform(embeddings_filtered)
+
+umap_df = pd.DataFrame({
+    'UMAP_1': embeddings_2d[:, 0],
+    'UMAP_2': embeddings_2d[:, 1],
+    'Company Name': merged_filtered_df_embedding['name'],
+    'Description': merged_filtered_df_embedding['description']
+})
+
+umap_df['Topic'] = merged_filtered_df_embedding['topic']  # Assuming 'topic' column exists
+
+# Create the scatter plot with coloring by topic
+fig = px.scatter(
+    umap_df,
+    x='UMAP_1',
+    y='UMAP_2',
+    color='Topic',  # Add color based on topics
+    hover_data={'Company Name': True, 'Description': False, 'Topic': True},  # Show Topic in hover
+    title='UMAP of Company Descriptions with Sentence Embeddings by Topic',
+    template='plotly_dark',
+    custom_data=['Company Name', 'Description', 'Topic']  # Add customdata
+)
+
+# Show the plot interactively
+
+# Save the figure
+figure_path = os.path.join(save_folder, "umap_company_descriptions_by_topic.html")
+fig.write_html(figure_path)
+plt.close(fig)
+
+print(f"Interactive figure saved to {figure_path}")
+
+print(f'save folder is {save_folder}')

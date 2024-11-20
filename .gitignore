@@ -174,3 +174,6 @@ iframe_figures
 # added by Iman
 data/**/*.csv
 data/**/*.xlsx
+data/**/*.txt
+data/**/*.png
+data/**/*.html
