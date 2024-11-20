@@ -1,3 +1,26 @@
+"""
+This script is useful for clustering, searching, and visualizing companies based on their textual descriptions.\
+This script performs data processing, embedding generation, and visualization for company descriptions.
+
+The main steps include:
+1. Loading company and job datasets from CSV files.
+2. Generating TF-IDF and SentenceTransformer-based embeddings for company descriptions.
+3. Visualizing the embeddings using UMAP (Uniform Manifold Approximation and Projection) for dimensionality reduction.
+4. Using cosine similarity to find relevant companies based on predefined queries.
+5. Providing an interactive visualization of the relevant companies' embeddings using Plotly.
+
+Key functionalities:
+- Embedding company descriptions with TF-IDF and SentenceTransformer.
+- Dimensionality reduction with UMAP for visualization.
+- Query-based filtering of relevant companies based on their descriptions.
+- Saving and loading precomputed embeddings for efficiency.
+
+Dependencies:
+- pandas, numpy, matplotlib, seaborn, sklearn, plotly, umap-learn, sentence-transformers
+
+
+"""
+
 #%% Import necessary libraries
 import pandas as pd
 import numpy as np
@@ -17,9 +40,7 @@ import umap
 import pandas as pd
 import plotly.express as px
 
-import dash
-import dash_core_components as dcc
-import dash_html_components as html
+
 import plotly.express as px
 import pandas as pd
 import numpy as np
