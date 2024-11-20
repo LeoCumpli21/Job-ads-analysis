@@ -1,24 +1,6 @@
 """
 This script is useful for clustering, searching, and visualizing companies based on their textual descriptions.\
 This script performs data processing, embedding generation, and visualization for company descriptions.
-
-The main steps include:
-1. Loading company and job datasets from CSV files.
-2. Generating TF-IDF and SentenceTransformer-based embeddings for company descriptions.
-3. Visualizing the embeddings using UMAP (Uniform Manifold Approximation and Projection) for dimensionality reduction.
-4. Using cosine similarity to find relevant companies based on predefined queries.
-5. Providing an interactive visualization of the relevant companies' embeddings using Plotly.
-
-Key functionalities:
-- Embedding company descriptions with TF-IDF and SentenceTransformer.
-- Dimensionality reduction with UMAP for visualization.
-- Query-based filtering of relevant companies based on their descriptions.
-- Saving and loading precomputed embeddings for efficiency.
-
-Dependencies:
-- pandas, numpy, matplotlib, seaborn, sklearn, plotly, umap-learn, sentence-transformers
-
-
 """
 
 #%% Import necessary libraries
@@ -40,13 +22,15 @@ import umap
 import pandas as pd
 import plotly.express as px
 
+from sklearn.decomposition import NMF
+from math import ceil
 
 import plotly.express as px
 import pandas as pd
 import numpy as np
 import umap
 
-top_N = 6 # how many similar companies to pick based on cosine similarity 
+top_N = 10 # how many similar companies to pick based on cosine similarity 
 #%%# Load all datasets
 
 def load_csv_to_dict(folder_path):
@@ -56,7 +40,7 @@ def load_csv_to_dict(folder_path):
             df_name= os.path.splitext(file_name)[0]
             csv_dict[df_name]= pd.read_csv(os.path.join(folder_path, file_name))
     return csv_dict
-#%%
+
 companies_folder = 'data/companies'
 jobs_folder = 'data/jobs'
 companies_dict = load_csv_to_dict(companies_folder)
@@ -172,33 +156,31 @@ if False:
 # %% Find more relevant companies based on matching their embeddings against description of pre-defined relevant companies as well as queries crafted based on ASML needs
 
 df = companies_dict['companies']
-# List of relevant companies (ensure the list is properly formatted and consistent)
-asml_relevant_companies = [
-    'intel corporation',  # Customer
-    'applied materials',  # Competitor, Supplier
-    'kla',  # Supplier, Counterpart
-    'micron technology',  # Customer
-    'lam research',  # Competitor, Counterpart
-    'tsmc',  # Customer
-    'globalfoundries',  # Customer
-    'silfex, inc. - a division of lam research corporation',  # Supplier
-    'imec usa',  # Research partner
-    'ASML'  # ASML itself, though not needed in most use cases
-]
+df_company_industries=companies_dict['company_industries']
+
+# Filter companies with 'Semiconductor Manufacturing' in the industry column
+semiconductor_companies = df_company_industries[df_company_industries['industry'] == 'Semiconductor Manufacturing']
+
+# Display the result
+print(f"Number of companies in 'Semiconductor Manufacturing': {semiconductor_companies.shape[0]}")
+
+merged_df_semiconductor_companies = df.merge(
+    semiconductor_companies,
+    on='company_id', 
+    how='right'
+)
+
+asml_relevant_companies= merged_df_semiconductor_companies.name.values
+
 
 # we did not add canon, nikon, and samsung as they are too huge and can add noise, for now.
 
 # Ensure all relevant company names are lowercased
 asml_relevant_companies = [company.lower() for company in asml_relevant_companies]
 
-# Clean and lowercase the company names in your dataframe
-df['clean_name'] = df['name'].str.strip().str.lower()
-
-# Filter the dataframe based on the relevant companies list
-filtered_df = df[df['clean_name'].isin(asml_relevant_companies)]
 
 # Show the results
-print(f'number of pre-determined relevant companies: {filtered_df.shape[0]}')
+print(f'number of pre-determined relevant companies: {merged_df_semiconductor_companies.shape[0]}')
 
 
 # Define the talent queries (additional queries included)
@@ -226,8 +208,8 @@ talent_queries = [
     "Designing advanced laser optics for photolithography and etching processes.",
     "Implementing real-time laser-based metrology for semiconductor wafer inspection."
 ]
-
-company_description= filtered_df.description.values
+talent_queries=[]
+company_description= merged_df_semiconductor_companies.description.values
 talent_queries.extend(company_description)
 
 # Encode the talent queries into embeddings
@@ -238,6 +220,10 @@ relevant_company_ids = set()
 
 # For each query, compute the cosine similarity with company descriptions
 for i, query in enumerate(talent_queries):
+    if pd.isna(query):
+        print(f"Skipping NaN query at index {i}")
+        continue  # Skip to the next query
+
     similarity_scores = cosine_similarity([query_embeddings[i]], embeddings)[0]  # Cosine similarity with all companies
 
     # Aggregate the results into a DataFrame
@@ -290,15 +276,84 @@ if False:
 
 
 
+#%%
+df_company_industries = companies_dict['company_industries']
+merged_filtered_df_embedding = filtered_df_embedding.merge(
+    df_company_industries, 
+    on='company_id', 
+    how='left'
+)
+
+merged_filtered_df_embedding = merged_filtered_df_embedding.loc[:, ~merged_filtered_df_embedding.columns.str.startswith("Similarity to Query")]
+
+
+# Extended list of less relevant industries
+less_relevant_industries_extended = [
+    'Paper and Forest Product Manufacturing',
+    'Telecommunications',
+    'Outsourcing and Offshoring Consulting',
+    'Truck Transportation',
+    'Insurance',
+    'Utilities',
+    'Glass, Ceramics and Concrete Manufacturing',
+    'Mining',
+    'Wholesale Building Materials',
+    'Business Consulting and Services',
+    'Construction',
+    'Medical Equipment Manufacturing',
+    'Financial Services',
+    'Retail Apparel and Fashion',
+    'Retail',
+    'Media Production',
+    'Design Services',
+    'Real Estate',
+    'Human Resources Services',
+    'Food and Beverage Manufacturing',
+    'Staffing and Recruiting',
+    'Printing Services',
+    'Law Practice',
+    'Computers and Electronics Manufacturing',
+    'Biotechnology Research',
+    'Nanotechnology Research',
+    'Broadcast Media Production and Distribution',
+    'Government Administration',
+    'Airlines and Aviation',
+    'Advertising Services',
+    'Plastics Manufacturing',
+    'Wholesale',
+    'Hospitals and Health Care',
+    'Environmental Services',
+    'Retail Office Equipment',
+    'Security and Investigations',
+    'Consumer Services',
+    'Events Services',
+    'Railroad Equipment Manufacturing',
+    'Non-profit Organizations',
+    'Pharmaceutical Manufacturing',
+    'Personal Care Product Manufacturing',
+    'International Trade and Development',
+    'Food and Beverage Services'
+]
+
+# Filter out companies with industries in the extended less_relevant_industries list
+before_size = merged_filtered_df_embedding.shape[0]
+merged_filtered_df_embedding = merged_filtered_df_embedding[~merged_filtered_df_embedding['industry'].isin(less_relevant_industries_extended)]
+
+print(f"before {before_size} and after {merged_filtered_df_embedding.shape[0]}")
+# Check the resulting unique industries in the filtered DataFrame
+print(merged_filtered_df_embedding['industry'].unique())
+
+# %%
+
 reducer = umap.UMAP(n_neighbors=15, min_dist=0.1, random_state=42)
-embeddings_filtered = np.array(filtered_df_embedding['embedding'].to_list())
+embeddings_filtered = np.array(merged_filtered_df_embedding['embedding'].to_list())
 embeddings_2d = reducer.fit_transform(embeddings_filtered)
 
 umap_df = pd.DataFrame({
     'UMAP_1': embeddings_2d[:, 0],
     'UMAP_2': embeddings_2d[:, 1],
-    'Company Name': filtered_df_embedding['name'],
-    'Description': filtered_df_embedding['description']
+    'Company Name': merged_filtered_df_embedding['name'],
+    'Description': merged_filtered_df_embedding['description']
 })
 
 fig = px.scatter(
@@ -311,3 +366,73 @@ fig = px.scatter(
     custom_data=['Company Name', 'Description']  # Add customdata
 )
 fig.show()
+
+#%%
+descriptions = merged_filtered_df_embedding['description'].dropna()
+
+# Vectorize the descriptions using TF-IDF
+vectorizer = TfidfVectorizer(stop_words='english', max_features=1000)  # You can adjust max_features
+X = vectorizer.fit_transform(descriptions)
+
+# Number of topics you want to extract (You can adjust this number)
+n_topics = 12
+
+# Fit the NMF model
+nmf = NMF(n_components=n_topics, random_state=42,max_iter= 1000)
+nmf.fit(X)
+
+# Get the top words for each topic
+feature_names = np.array(vectorizer.get_feature_names_out())
+top_words = 10  # Number of top words per topic
+
+# Create a dictionary of topics with top words
+topics = {}
+for topic_idx, topic in enumerate(nmf.components_):
+    top_indices = topic.argsort()[-top_words:][::-1]
+    top_terms = feature_names[top_indices]
+    topics[topic_idx] = top_terms
+
+# Display the topics and top words
+for topic_idx, terms in topics.items():
+    print(f"Topic {topic_idx}: {' '.join(terms)}")
+
+
+
+
+# Plot the top words for each topic in a grid
+def plot_top_words_grid(model, feature_names, n_top_words, n_topics):
+    # Calculate number of rows and columns for the grid
+    n_cols = 4  # You can adjust this for the number of columns you want
+    n_rows = ceil(n_topics / n_cols)  # Calculate the number of rows needed to fit all topics
+    
+    # Create a grid of subplots
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 5 * n_rows))
+    
+    # Flatten the axes array for easy indexing if necessary
+    axes = axes.flatten()
+
+    # Plot each topic
+    for topic_idx in range(n_topics):
+        ax = axes[topic_idx]
+        topic = model.components_[topic_idx]
+        
+        top_indices = topic.argsort()[-n_top_words:][::-1]
+        top_terms = [feature_names[i] for i in top_indices]
+        top_weights = topic[top_indices]
+
+        ax.barh(top_terms, top_weights, color='skyblue')
+        ax.set_title(f"Topic {topic_idx + 1}")
+        ax.set_xlabel('Weight')
+        ax.set_ylabel('Words')
+
+    # Remove unused axes if there are any (in case the number of topics is not a multiple of n_cols)
+    for i in range(n_topics, len(axes)):
+        fig.delaxes(axes[i])
+
+    plt.tight_layout()  # Adjust layout to avoid overlap
+    plt.show()
+
+# Plot the top 10 words for each topic in a grid
+plot_top_words_grid(nmf, feature_names, top_words, n_topics)
+
+# %%
