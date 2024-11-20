@@ -21,6 +21,7 @@ from sentence_transformers import SentenceTransformer
 import umap
 import pandas as pd
 import plotly.express as px
+from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 
 from sklearn.decomposition import NMF
 from math import ceil
@@ -29,8 +30,16 @@ import plotly.express as px
 import pandas as pd
 import numpy as np
 import umap
+custom_stopwords = [
+    "technology", "division", "industries", "provides", "high", "ate", "com", 
+    "http", "facebook", "company", "engineered", "wide", "range", "create", 
+    "leader", "easier", "mission", "lives", "world", "future", "shaping", 
+    "years", "60", "built", "collaboration", "make", "better",
+    "provide", "technologies", "leading", "uses", "countless", "performing",
+"bringing", "independent", "www"]
+all_stopwords = list(ENGLISH_STOP_WORDS.union(custom_stopwords))  # Convert to a list
 
-top_N = 10 # how many similar companies to pick based on cosine similarity 
+top_N = 1 # how many similar companies to pick based on cosine similarity 
 #%%# Load all datasets
 
 def load_csv_to_dict(folder_path):
@@ -371,7 +380,7 @@ fig.show()
 descriptions = merged_filtered_df_embedding['description'].dropna()
 
 # Vectorize the descriptions using TF-IDF
-vectorizer = TfidfVectorizer(stop_words='english', max_features=1000)  # You can adjust max_features
+vectorizer = TfidfVectorizer(stop_words=all_stopwords, max_features=1000)  # You can adjust max_features
 X = vectorizer.fit_transform(descriptions)
 
 # Number of topics you want to extract (You can adjust this number)
