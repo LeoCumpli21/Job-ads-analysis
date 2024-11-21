@@ -1,3 +1,4 @@
+import json
 import os
 
 import numpy as np
@@ -15,13 +16,13 @@ def calculate_umap_embeddings(embeddings):
 
 
 @st.cache_data
-def load_and_preprocess_data(embedding_folder, embedding_filename):
+def load_and_preprocess_data(embedding_folder, embedding_filename, company_name):
     df = utils.load_data("ranked_data.csv")
     embeddings = np.load(os.path.join(embedding_folder, embedding_filename))
     umap_embeddings = calculate_umap_embeddings(embeddings)
     df["x"] = umap_embeddings[:, 0]
     df["y"] = umap_embeddings[:, 1]
-    df.loc[df["company_name"] == "ASML", "rank"] = 5  # Highlight Company A
+    df.loc[df["company_name"] == company_name, "rank"] = 5  # Highlight Company A
     df["rank_colors"] = df["rank"].map(
         {
             0: "irrelevant",
@@ -29,13 +30,13 @@ def load_and_preprocess_data(embedding_folder, embedding_filename):
             2: "grey area",
             3: "probably relevant",
             4: "relevant",
-            5: "ASML",
+            5: company_name,
         }
     )
     return df
 
 
-def create_figure(df):
+def create_figure(df, company_name):
 
     fig = px.scatter(
         df,
@@ -56,7 +57,7 @@ def create_figure(df):
             "grey area": "lightgreen",
             "probably relevant": "purple",
             "relevant": "blue",
-            "ASML": "white",
+            company_name: "white",
         },
     )
     fig.update_layout(clickmode="event+select")
@@ -65,18 +66,22 @@ def create_figure(df):
 
 
 def main():
+    with open("config.json", "r") as f:
+        config = json.load(f)
+
+    company_name = config["embeddings_eda.py"]["company_name"]
     st.set_page_config(layout="wide")
     st.title("Job Posting Visualization")
 
     embedding_folder = "data/eda/"
     embedding_filename = "eda_embedding_company_names.npy"
 
-    df = load_and_preprocess_data(embedding_folder, embedding_filename)
+    df = load_and_preprocess_data(embedding_folder, embedding_filename, company_name)
 
     left_column, right_column = st.columns(2)
 
     with left_column:
-        fig = create_figure(df)
+        fig = create_figure(df, company_name)
 
         # Capture the selection event explicitly
         selected_point = st.plotly_chart(fig, key="scatter_plot", on_select="rerun")
