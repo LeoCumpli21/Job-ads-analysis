@@ -164,6 +164,8 @@ cython_debug/
 # Data
 data/raw
 data/out
+data/**/*.csv
+data/eda
 
 # Images
 iframe_figures
