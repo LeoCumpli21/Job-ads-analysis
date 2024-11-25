@@ -1,5 +1,14 @@
 {
     "embeddings_eda.py": {
-        "company_name": "ASML"
+        "company_name": "ASML",
+        "kaggle_data_filename": "kaggle.csv",
+        "kaggle_embeddings_filename": "kaggle_embeddings.npy"
+    },
+    "streamlit_app": {
+        "company_name": "ASML",
+        "kaggle_data_filename": "kaggle_merged.csv",
+        "kaggle_embeddings_filename": "kaggle_embeddings.npy",
+        "skills_filename": "skills.csv",
+        "industries_filename": "industries.csv"
     }
 }
