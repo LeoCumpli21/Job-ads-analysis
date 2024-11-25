@@ -21,7 +21,7 @@ def generate_text_embeddings(
     """
     embeddings = []
     for text in s:
-        embedding = model.encode(text, show_progress_bar=True)
+        embedding = model.encode(text)
         embeddings.append(embedding)
     return embeddings
 
@@ -40,6 +40,27 @@ def get_cosine_similarity(embedding_1: List[float], embedding_2: List[float]) ->
     embedding_2 = np.array(embedding_2).reshape(1, -1)
     similarity = cosine_similarity(embedding_1, embedding_2)
     return similarity[0][0]
+
+
+def get_highest_similarity(
+    roles_embeddings: dict[str, List[float]], text_embedding: List[float]
+) -> float:
+    """
+    Calculate the highest cosine similarity between a given text embedding and a list other embeddings.
+
+    Args:
+        roles_embeddings (dict): A dictionary where keys are role identifiers and values are their corresponding embeddings.
+        text_embedding (list or numpy array): The embedding of the text to compare against the role embeddings.
+
+    Returns:
+        float: The highest cosine similarity value found between the text embedding and the role embeddings.
+    """
+    highest = 0
+    for role in roles_embeddings:
+        similarity = get_cosine_similarity(roles_embeddings[role], text_embedding)
+        if similarity > highest:
+            highest = similarity
+    return highest
 
 
 def get_umap_projection(
