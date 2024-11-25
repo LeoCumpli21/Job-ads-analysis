@@ -65,6 +65,19 @@ def main():
     # Skills filter (multi-selection)
     selected_skills = st.sidebar.multiselect("Skills", skills_s.tolist())
 
+    # --- Salary filter ---
+    if selected_industry != "All":
+        filtered_df_for_salary = df[df["industries"].str.contains(selected_industry)]
+        min_salary = int(filtered_df_for_salary["med_salary_monthly"].min())
+        max_salary = int(filtered_df_for_salary["med_salary_monthly"].max())
+
+        salary_range = st.sidebar.slider(
+            "Monthly Salary Range",
+            min_value=min_salary,
+            max_value=max_salary,
+            value=(min_salary, max_salary),
+        )
+
     # --- "Find" button ---
     if selected_industry != "All":
         if st.button("Find"):
@@ -85,6 +98,14 @@ def main():
                         lambda x: any(skill in x for skill in selected_skills)
                     )
                 ]
+            # --- Salary filter ---
+            if (
+                selected_industry != "All"
+            ):  # Only apply salary filter if industry is selected
+                filtered_df = filtered_df[
+                    (filtered_df["med_salary_monthly"] >= salary_range[0])
+                    & (filtered_df["med_salary_monthly"] <= salary_range[1])
+                ]
 
             # --- Display filtered data ---
             st.header("Filtered Job Postings")
@@ -96,6 +117,7 @@ def main():
                         "description",
                         "skills",
                         "industries",
+                        "med_salary_monthly",
                     ]
                 ].reset_index(drop=True),
                 height=500,
