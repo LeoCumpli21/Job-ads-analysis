@@ -7,8 +7,10 @@
     "streamlit_app": {
         "company_name": "ASML",
         "kaggle_data_filename": "kaggle_merged.csv",
-        "kaggle_embeddings_filename": "kaggle_embeddings.npy",
+        "kaggle_embeddings_folder": "data/out/all_embeddings",
         "skills_filename": "skills.csv",
-        "industries_filename": "industries.csv"
+        "industries_filename": "industries.csv",
+        "embedding_model_name": "all-mpnet-base-v2",
+        "similarity_trehshold": 0.7
     }
 }
